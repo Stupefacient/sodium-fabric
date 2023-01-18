@@ -24,7 +24,7 @@ public class NativeBuffer {
 
     private static long ALLOCATED = 0L;
 
-    private final BufferReference ref;
+    public BufferReference ref;
 
     public NativeBuffer(int capacity) {
         this.ref = allocate(capacity);
@@ -38,10 +38,30 @@ public class NativeBuffer {
         return dst;
     }
 
+    public void reallocate(int newSize) {
+        ref = reallocate(this.ref, newSize);
+        ACTIVE_BUFFERS.put(new PhantomReference<>(this, RECLAIM_QUEUE), this.ref);
+    }
+
+    private static BufferReference reallocate(BufferReference ref, int size) {
+        ref.checkFreed();
+        ref.freed = true;
+        long newAddr = MemoryUtil.nmemRealloc(ref.address, size);
+        ALLOCATED -= ref.length-size;
+        BufferReference reref = new BufferReference(newAddr, size, ref.allocationSite);
+        return reref;
+    }
+
     public ByteBuffer getDirectBuffer() {
         this.ref.checkFreed();
 
         return MemoryUtil.memByteBuffer(this.ref.address, this.ref.length);
+    }
+
+    public long getAddress() {
+        this.ref.checkFreed();
+
+        return this.ref.address;
     }
 
     public void free() {

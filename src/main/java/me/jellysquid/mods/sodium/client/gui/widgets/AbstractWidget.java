@@ -18,6 +18,7 @@ import java.util.function.Consumer;
 
 public abstract class AbstractWidget implements Drawable, Element, Selectable {
     protected final TextRenderer font;
+    protected boolean focused;
 
     protected AbstractWidget() {
         this.font = MinecraftClient.getInstance().textRenderer;
@@ -44,7 +45,6 @@ public abstract class AbstractWidget implements Drawable, Element, Selectable {
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 
         RenderSystem.enableBlend();
-        RenderSystem.disableTexture();
         RenderSystem.defaultBlendFunc();
 
         BufferBuilder bufferBuilder = Tessellator.getInstance().getBuffer();
@@ -55,7 +55,6 @@ public abstract class AbstractWidget implements Drawable, Element, Selectable {
         BufferBuilder.BuiltBuffer output = bufferBuilder.end();
 
         BufferRenderer.drawWithGlobalProgram(output);
-        RenderSystem.enableTexture();
         RenderSystem.disableBlend();
     }
 
@@ -92,5 +91,15 @@ public abstract class AbstractWidget implements Drawable, Element, Selectable {
     @Override
     public void appendNarrations(NarrationMessageBuilder builder) {
         // FIXME
+    }
+
+    @Override
+    public void setFocused(boolean bl) {
+        this.focused = bl;
+    }
+
+    @Override
+    public boolean isFocused() {
+        return focused;
     }
 }

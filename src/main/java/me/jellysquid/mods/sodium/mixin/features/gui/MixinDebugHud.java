@@ -85,7 +85,6 @@ public abstract class MixinDebugHud {
 
     private void renderBackdrop(MatrixStack matrixStack, List<String> list, boolean right) {
         RenderSystem.enableBlend();
-        RenderSystem.disableTexture();
         RenderSystem.defaultBlendFunc();
 
         int color = 0x90505050;
@@ -130,7 +129,6 @@ public abstract class MixinDebugHud {
         BufferBuilder.BuiltBuffer output = bufferBuilder.end();
 
         BufferRenderer.drawWithGlobalProgram(output);
-        RenderSystem.enableTexture();
         RenderSystem.disableBlend();
     }
 }

@@ -126,7 +126,6 @@ public class CloudRenderer {
             RenderSystem.enableCull();
         }
 
-        RenderSystem.disableTexture();
         RenderSystem.setShaderColor((float) color.x, (float) color.y, (float) color.z, 0.8f);
 
         matrices.push();
