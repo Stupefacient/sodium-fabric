@@ -1,11 +1,12 @@
 package me.jellysquid.mods.sodium.mixin.features.gui.font;
 
+import me.jellysquid.mods.sodium.client.render.RenderGlobal;
 import me.jellysquid.mods.sodium.client.render.vertex.formats.GlyphVertex;
-import me.jellysquid.mods.sodium.client.render.vertex.VertexBufferWriter;
+import me.jellysquid.mods.sodium.client.render.vertex.buffer.VertexBufferWriter;
 import me.jellysquid.mods.sodium.client.util.color.ColorABGR;
+import me.jellysquid.mods.sodium.common.util.MatrixHelper;
 import net.minecraft.client.font.GlyphRenderer;
 import net.minecraft.client.render.VertexConsumer;
-import org.joml.Math;
 import org.joml.Matrix4f;
 import org.lwjgl.system.MemoryStack;
 import org.spongepowered.asm.mixin.Final;
@@ -66,8 +67,8 @@ public class MixinGlyphRenderer {
 
         var writer = VertexBufferWriter.of(vertexConsumer);
 
-        try (MemoryStack stack = VertexBufferWriter.STACK.push()) {
-            long buffer = writer.buffer(stack, 4, GlyphVertex.STRIDE, GlyphVertex.FORMAT);
+        try (MemoryStack stack = RenderGlobal.VERTEX_DATA.push()) {
+            long buffer = stack.nmalloc(4 * GlyphVertex.STRIDE);
             long ptr = buffer;
 
             write(ptr, matrix, x1 + w1, h1, 0.0F, color, this.minU, this.minV, light);
@@ -82,15 +83,15 @@ public class MixinGlyphRenderer {
             write(ptr, matrix, x2 + w1, h1, 0.0F, color, this.maxU, this.minV, light);
             ptr += GlyphVertex.STRIDE;
 
-            writer.push(buffer, 4, GlyphVertex.STRIDE, GlyphVertex.FORMAT);
+            writer.push(stack, buffer, 4, GlyphVertex.FORMAT);
         }
     }
 
     private static void write(long buffer,
                               Matrix4f matrix, float x, float y, float z, int color, float u, float v, int light) {
-        float x2 = Math.fma(matrix.m00(), x, Math.fma(matrix.m10(), y, Math.fma(matrix.m20(), z, matrix.m30())));
-        float y2 = Math.fma(matrix.m01(), x, Math.fma(matrix.m11(), y, Math.fma(matrix.m21(), z, matrix.m31())));
-        float z2 = Math.fma(matrix.m02(), x, Math.fma(matrix.m12(), y, Math.fma(matrix.m22(), z, matrix.m32())));
+        float x2 = MatrixHelper.transformPositionX(matrix, x, y, z);
+        float y2 = MatrixHelper.transformPositionY(matrix, x, y, z);
+        float z2 = MatrixHelper.transformPositionZ(matrix, x, y, z);
 
         GlyphVertex.write(buffer, x2, y2, z2, color, u, v, light);
     }

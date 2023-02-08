@@ -4,8 +4,6 @@ import it.unimi.dsi.fastutil.longs.Long2ReferenceMap;
 import it.unimi.dsi.fastutil.longs.Long2ReferenceOpenHashMap;
 import me.jellysquid.mods.sodium.client.render.vertex.VertexFormatDescription;
 import me.jellysquid.mods.sodium.client.render.vertex.serializers.generated.VertexSerializerFactory;
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,8 +12,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 
 public class VertexSerializerCache {
     private static final Logger LOGGER = LoggerFactory.getLogger(VertexSerializerCache.class);
@@ -35,7 +31,7 @@ public class VertexSerializerCache {
     private static final Long2ReferenceMap<VertexSerializer> CACHE = new Long2ReferenceOpenHashMap<>();
 
     public static VertexSerializer get(VertexFormatDescription srcFormat, VertexFormatDescription dstFormat) {
-        var identifier = getSerializerKey(srcFormat, dstFormat);
+        var identifier = createKey(srcFormat, dstFormat);
         var serializer = CACHE.get(identifier);
 
         if (serializer == null) {
@@ -45,15 +41,10 @@ public class VertexSerializerCache {
         return serializer;
     }
 
-    private static long getSerializerKey(VertexFormatDescription a, VertexFormatDescription b) {
-        return (long) a.id & 0xffffffffL | ((long) b.id & 0xffffffffL) << 32;
-    }
-
     private static VertexSerializer createSerializer(VertexFormatDescription srcVertexFormat, VertexFormatDescription dstVertexFormat) {
         var identifier = String.format("%04X$%04X", srcVertexFormat.id, dstVertexFormat.id);
-        var desc = createMemoryTransferList(srcVertexFormat, dstVertexFormat);
 
-        var bytecode = VertexSerializerFactory.generate(desc, identifier);
+        var bytecode = VertexSerializerFactory.generate(srcVertexFormat, dstVertexFormat, identifier);
 
         if (CLASS_DUMP_PATH != null) {
             dumpClass(identifier, bytecode);
@@ -87,67 +78,6 @@ public class VertexSerializerCache {
         return serializer;
     }
 
-    private static List<MemoryTransfer> createMemoryTransferList(VertexFormatDescription srcVertexFormat, VertexFormatDescription dstVertexFormat) {
-        if (srcVertexFormat.elements.length < dstVertexFormat.elements.length) {
-            throw new IllegalArgumentException("Source format has fewer elements than destination format");
-        }
-
-        var ops = new ArrayList<MemoryTransfer>();
-
-        var srcElements = srcVertexFormat.elements;
-        var srcOffsets = srcVertexFormat.offsets;
-
-        var dstElements = dstVertexFormat.elements;
-        var dstOffsets = dstVertexFormat.offsets;
-
-        for (int dstIndex = 0; dstIndex < dstElements.length; dstIndex++) {
-            var dstElement = dstElements[dstIndex];
-
-            var srcIndex = ArrayUtils.indexOf(srcElements, dstElement);
-
-            if (srcIndex == ArrayUtils.INDEX_NOT_FOUND) {
-                throw new RuntimeException("Source vertex format does not contain element: " + dstElement);
-            }
-
-            var srcOffset = srcOffsets[srcIndex];
-            var dstOffset = dstOffsets[dstIndex];
-
-            ops.add(new MemoryTransfer(srcOffset, dstOffset, dstElement.getByteLength()));
-        }
-
-        return mergeAdjacentMemoryTransfers(ops);
-    }
-
-    private static List<MemoryTransfer> mergeAdjacentMemoryTransfers(ArrayList<MemoryTransfer> src) {
-        var dst = new ArrayList<MemoryTransfer>(src.size());
-
-        var srcOffset = 0;
-        var dstOffset = 0;
-
-        var length = 0;
-
-        for (var op : src) {
-            if (srcOffset + length == op.src() && dstOffset + length == op.dst()) {
-                length += op.length();
-                continue;
-            }
-
-            if (length > 0) {
-                dst.add(new MemoryTransfer(srcOffset, dstOffset, length));
-            }
-
-            srcOffset = op.src();
-            dstOffset = op.dst();
-            length = op.length();
-        }
-
-        if (length > 0) {
-            dst.add(new MemoryTransfer(srcOffset, dstOffset, length));
-        }
-
-        return dst;
-    }
-
     private static void dumpClass(String id, VertexSerializerFactory.Bytecode bytecode) {
         var path = CLASS_DUMP_PATH.resolve("VertexSerializer$Impl$%s.class".formatted(id));
 
@@ -156,5 +86,9 @@ public class VertexSerializerCache {
         } catch (IOException e) {
             LOGGER.warn("Could not dump bytecode to location: {}", path, e);
         }
+    }
+
+    private static long createKey(VertexFormatDescription a, VertexFormatDescription b) {
+        return (long) a.id & 0xffffffffL | ((long) b.id & 0xffffffffL) << 32;
     }
 }

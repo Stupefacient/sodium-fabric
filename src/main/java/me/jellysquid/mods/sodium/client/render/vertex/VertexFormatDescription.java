@@ -1,40 +1,33 @@
 package me.jellysquid.mods.sodium.client.render.vertex;
 
 import net.minecraft.client.render.VertexFormat;
-import net.minecraft.client.render.VertexFormatElement;
 
-import java.util.Arrays;
 import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
 
 public class VertexFormatDescription {
     public final int id;
+    public final int stride;
 
-    public final VertexFormatElement[] elements;
     public final int[] offsets;
 
     public VertexFormatDescription(VertexFormat format, int id) {
         this.id = id;
-        this.elements = format.getElements()
-                .toArray(VertexFormatElement[]::new);
-        this.offsets = format.offsets
-                .toIntArray();
+        this.stride = format.getVertexSizeByte();
+
+        this.offsets = VertexElementType.getOffsets(format);
     }
 
-    public int getOffset(VertexFormatElement element) {
-        for (int i = 0; i < this.elements.length; i++) {
-            if (element == this.elements[i]) {
-                return this.offsets[i];
-            }
+    public boolean hasElement(VertexElementType element) {
+        return this.offsets[element.ordinal()] != -1;
+    }
+
+    public int getElementOffset(VertexElementType element) {
+        int offset = this.offsets[element.ordinal()];
+
+        if (offset == -1) {
+            throw new NoSuchElementException("Vertex format does not contain element: " + element);
         }
 
-        throw new NoSuchElementException("Vertex format does not contain element: " + element);
-    }
-
-    @Override
-    public String toString() {
-        return Arrays.stream(this.elements)
-                .map(e -> String.format("[%s]", e))
-                .collect(Collectors.joining(","));
+        return offset;
     }
 }
